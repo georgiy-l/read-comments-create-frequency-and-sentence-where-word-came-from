@@ -1,0 +1,193 @@
+import csv
+import numpy as np
+import pandas as pd
+from pandas import read_csv
+import pprint
+from operator import is_not
+from functools import partial
+import string
+import xlsxwriter
+import xlrd
+import matplotlib as plt
+import csv
+from matplotlib import pyplot as plt
+
+
+#file we're working with
+
+filename = 'WHBM_Data_VOC_Work.xlsx'
+for sheetname in pd.ExcelFile(filename).sheet_names:
+    print(sheetname)
+
+#that'll give list of all column names
+# for column in pd.read_excel(filename).columns.values:
+#     print(column)
+sheet_name='Dresses 2'
+data = pd.read_excel(filename, sheet_name=sheet_name)
+#file that contains negative keywords we want to exclude
+negKwFilename = 'negativekeywords.xlsx'
+negKeywords = pd.read_excel(negKwFilename)
+#grab column
+content = data.iloc[:,5] #this works for index slicing
+#content = data[['Comments']]
+print(content)
+#split content into sentences, create list with sentences, also appends other things we dont need
+wordListwNan = []
+for sentence in content:
+    print(type(sentence))
+    print(sentence)
+    if str(sentence) !='nan':
+        wordListwNan.append(sentence)
+        # print('-------!!!!!----')
+        # print(type(sentence))
+        # print(sentence)
+print('-------!!!!!----')
+print(len(content))
+print('-------!!!!!----')
+
+#get rid of nAn
+f = partial(is_not, np.nan)
+#print(len(wordListwNan))
+wordList = list(filter(f, wordListwNan))
+
+#pprint.pprint(wordList)
+#print(len(wordList))
+
+translator = str.maketrans('','', string.punctuation)
+
+words2 = []
+for sentence in wordList:
+    #print(sentence)
+    #sentence = sentence.lower()
+    for word in sentence.split(' '):
+        words2.append(word.translate(translator))
+#print('NEGwordsss----------------')
+
+#print(len(words2))
+words = []
+
+for word in words2:
+    if word not in words:
+        words.append(word)
+
+print('wordss2s before Modified----------3333333333333------')
+print(len(words2))
+print(len(words))
+print('wordss2s before Modified----------3333333333333------')
+
+#removes duplicates from negative keyword list
+nonDuplicatedNegKeywords =[]
+for word in negKeywords.iloc[:,0]:
+    if word not in nonDuplicatedNegKeywords:
+        nonDuplicatedNegKeywords.append(word)
+
+print('--------negativekeywords----------')
+print(len(nonDuplicatedNegKeywords))
+print(nonDuplicatedNegKeywords)
+print('--------negativekeywords----------')
+
+print('wordss2s before Modified----------3333333333333------')
+
+# takes big list, and subtracts negative keyword list from it,
+print('wordsss before Modified----------------')
+print(len(words))
+
+list3 = [x for x in words if x not in nonDuplicatedNegKeywords]
+
+print(list3)
+print(len(list3))
+count = {}
+for word in list3:
+    #print(word)
+    if word.isalpha():
+        count.setdefault(word, 0)
+        count[word] = count[word] + 1
+
+#works
+countSorted = pd.DataFrame(list(count.items()))
+countSorted = countSorted.add_prefix('Col')
+print('count sorted ^^^^^^^^^^^^^^^')
+#print(countSorted)
+print('count sorted ^^^^^^^^^^^^^^^')
+countSorted = countSorted.sort_values(by=['Col1'],ascending=False)
+#print(countSorted)
+print('count sorted sorted ^^^^^^^^^^^^^^^')
+
+#cut from the top
+"""
+while 'finish' != 'y':
+    finish = ''
+    print('your data looks like this: ')
+    print(countSorted.iloc[:,:].shape)
+    print(countSorted.iloc[:,:].head(10))
+    countSorted.head(50).plot(kind='barh', x='Col0', y='Col1', fontsize=8, figsize=(12,7) )
+
+    plt.show()
+
+    countSortedCut = int(input('How many words would you like to delete from the top?'))
+    print('your data looks like this: ')
+    print(countSorted.iloc[countSortedCut:,:].shape)
+    #print(countSorted.iloc[countSortedCut:,:].head(10))
+
+    countSorted = countSorted.iloc[countSortedCut:,:]
+    countSorted.head(50).plot(kind='barh', x='Col0',y='Col1', fontsize=8, figsize=(12, 7))
+    plt.show()
+    finish = str(input('are you finished? Type y to finish cutting data'))
+    if finish == 'y':
+        break
+"""
+
+
+#print(countSorted)
+print(countSorted.columns)
+print('countSOrted is above')
+#df = pd.DataFrame([count])
+#df = pd.DataFrame.from_dict(count,orient='index',columns=['A','B'])
+#df = (df.T)
+#print(df)
+#df["0"] = data["0"].str.split(", ",n=1, expand=True)
+#print(df)
+#df.to_excel('frequencyTest.xlsx')
+
+#transfer Pandas dataframe back to dict to iterate
+
+countSortedDict = countSorted.to_dict()
+countSortedDict = dict([(i,col0) for i, col0 in zip(countSorted.Col0, countSorted.Col1)])
+#Im not sure how this list comprehension works but it works
+
+print('---------------------------------------------!!')
+#pprint.pprint(countSortedDict)
+print('---------------------------------------------!!')
+frequencyWord = []
+frequencyWordNum = []
+frequencySentence = []
+for k, v in countSortedDict.items():
+    single_word = 0
+    #print(k,v)
+    #print(type(k), type(v))
+    for sentence in wordListwNan:
+        # print('------')
+        # print(sentence)
+        # print(type(sentence))
+        # print('-----')
+        # if type(sentence) is np.nan:
+        #     continue
+
+
+        if k in sentence:
+            single_word = single_word + 1
+            #print('---- New Word', k)
+           #print('Word: ',k, 'Word #: ', single_word, 'In Sentence:',  sentence)
+            frequencyWord.append(k)
+            frequencyWordNum.append(single_word)
+            frequencySentence.append(sentence)
+
+        #else:
+            #print('word', k, 'not found in sentence')
+print('--------------===---------')
+
+
+printableFrame = pd.DataFrame(list(zip(frequencyWord,frequencyWordNum, frequencySentence))).add_prefix('Col1')
+
+printableFrame.to_csv('frequencySentenceMinusNegatives'+ sheet_name +'.csv')
+
